@@ -348,7 +348,71 @@ input {
 .farmManageGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "sensors pump"
+    "settings side";
   gap: 14px;
+  align-items: stretch;
+}
+
+.manageCardSensors {
+  grid-area: sensors;
+}
+
+.manageCardPump {
+  grid-area: pump;
+}
+
+.manageSettingsCard {
+  grid-area: settings;
+}
+
+.farmManageSideCol {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+}
+
+.farmManageSideCol .manageCard {
+  flex: 1;
+  min-height: 0;
+}
+
+.manageCardLogs {
+  display: flex;
+  flex-direction: column;
+}
+
+.manageCardLogs .manageList {
+  flex: 1;
+}
+
+.manageCardSensors,
+.manageCardPump {
+  display: flex;
+  flex-direction: column;
+}
+
+.manageCardSensors .sensorGrid {
+  flex: 1;
+  align-content: stretch;
+}
+
+.manageCardSensors .sensorGrid > div {
+  min-height: 88px;
+}
+
+.farmManageToast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  width: min(520px, calc(100vw - 28px));
+  box-shadow: var(--df-shadow);
+  pointer-events: none;
 }
 
 .manageCard {
@@ -419,6 +483,7 @@ input {
 
 .sensorGrid strong {
   font-size: 22px;
+  font-variant-numeric: tabular-nums;
 }
 
 .manageRow {
@@ -438,10 +503,37 @@ input {
 
 .manageField {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 10px;
   font-weight: 600;
   font-size: 13px;
+}
+
+.manageFieldTight {
+  margin-bottom: 0;
+}
+
+.manageSettingsCard h2 {
+  margin-bottom: 18px;
+}
+
+.manageGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.manageGroup:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.manageScheduleGroup {
+  gap: 18px;
 }
 
 .manageCheck {
@@ -456,12 +548,18 @@ input {
 .scheduleRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 14px;
 }
 
 .manageFullBtn {
   width: 100%;
-  margin-top: 6px;
+  margin-top: 4px;
+  padding: 12px 16px;
+}
+
+.manageRebootBtn {
+  margin-top: 8px;
+  min-height: 44px;
 }
 
 .manageList {
@@ -522,6 +620,7 @@ a.btnTeal {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .adminIconBtn {
@@ -540,6 +639,309 @@ a.btnTeal {
 
 .adminIconBtn:hover {
   background: var(--df-panel);
+}
+
+.adminIconBtn.active {
+  background: var(--df-green);
+  color: #ffffff;
+  border-color: var(--df-green);
+}
+
+.headerPanelBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: none;
+  background: rgba(0, 0, 0, 0.12);
+  cursor: default;
+}
+
+.headerPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: min(360px, calc(100vw - 28px));
+  border-radius: var(--df-radius-lg);
+  border: 1px solid var(--df-panel);
+  background: var(--df-surface);
+  box-shadow: var(--df-shadow);
+  overflow: hidden;
+}
+
+.headerPanelHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--df-green-dark);
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.headerPanelClose {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.headerPanelBody {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.headerPanelEmpty {
+  margin: 0;
+  padding: 16px 10px;
+  font-size: 13px;
+  color: rgba(17, 17, 17, 0.55);
+  text-align: center;
+}
+
+.headerPanelItem {
+  width: 100%;
+  border: none;
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.headerPanelItem:hover {
+  background: var(--df-panel);
+}
+
+.headerPanelItemTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.headerPanelItemSub {
+  font-size: 11px;
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.headerPanelFootBtn {
+  width: calc(100% - 16px);
+  margin: 8px;
+}
+
+.profilePanelBody {
+  padding: 14px;
+}
+
+.profileRow {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.profileK {
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(17, 17, 17, 0.55);
+  text-transform: uppercase;
+}
+
+.controlToggles {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+  min-height: 92px;
+}
+
+.controlToggleSlot {
+  min-height: 38px;
+}
+
+.controlToggleSlot.isInactive {
+  opacity: 0.42;
+}
+
+.toggleSwitch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggleSwitch.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--df-green-dark);
+}
+
+.toggleTrack {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.toggleTrack input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.toggleTrack input:disabled {
+  cursor: not-allowed;
+}
+
+.toggleKnob {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 0.2s ease;
+}
+
+.toggleKnob::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease;
+}
+
+.toggleTrack input:checked + .toggleKnob {
+  background: var(--df-green);
+}
+
+.toggleTrack input:checked + .toggleKnob::after {
+  transform: translateX(22px);
+}
+
+.toggleTrack input:focus-visible + .toggleKnob {
+  box-shadow: 0 0 0 3px rgba(111, 173, 138, 0.35);
+}
+
+.moistureField {
+  margin-bottom: 0;
+}
+
+.moistureSlider {
+  width: 100%;
+}
+
+.moistureSliderRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.moistureSliderTrackWrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+.moistureSliderInput {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  display: block;
+}
+
+.moistureSliderInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.moistureSliderInput::-webkit-slider-runnable-track {
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #22c55e 0%,
+    #22c55e var(--moisture-pct, 0%),
+    #1a1a1a var(--moisture-pct, 0%),
+    #1a1a1a 100%
+  );
+}
+
+.moistureSliderInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 30px;
+  height: 30px;
+  margin-top: calc((18px - 30px) / 2);
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e5e5e5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.moistureSliderInput::-moz-range-track {
+  height: 18px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(
+    to right,
+    #22c55e 0%,
+    #22c55e var(--moisture-pct, 0%),
+    #1a1a1a var(--moisture-pct, 0%),
+    #1a1a1a 100%
+  );
+}
+
+.moistureSliderInput::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e5e5e5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.moistureSliderPct {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--df-green-dark);
+  line-height: 1;
 }
 
 .adminOutlet {
@@ -589,6 +991,12 @@ a.btnTeal {
   background: rgba(111, 173, 138, 0.15);
   border-color: rgba(111, 173, 138, 0.45);
   color: var(--df-green-dark);
+}
+
+.adminBannerErr {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
 }
 
 .adminEmptyRow {
@@ -707,6 +1115,30 @@ a.btnTeal {
 
 .btnBlack:hover:not(:disabled) {
   opacity: 0.88;
+}
+
+.btnDanger {
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 700;
+  transition: background 0.15s ease;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btnDanger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btnDanger.manageFullBtn {
+  margin-top: 10px;
 }
 
 .mono {
@@ -1413,6 +1845,28 @@ a.btnTeal {
 
   .farmManageGrid {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "sensors"
+      "pump"
+      "settings"
+      "alerts"
+      "logs";
+  }
+
+  .farmManageSideCol {
+    display: contents;
+  }
+
+  .manageCardAlerts {
+    grid-area: alerts;
+  }
+
+  .manageCardLogs {
+    grid-area: logs;
+  }
+
+  .manageCardSensors .sensorGrid > div {
+    min-height: 0;
   }
 
   .scheduleRow {

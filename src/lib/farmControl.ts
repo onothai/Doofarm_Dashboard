@@ -1,4 +1,4 @@
-import { push, ref, set, update } from "firebase/database";
+import { push, ref, remove, set, update } from "firebase/database";
 import { auth, database } from "../firebase";
 
 function planBase(ownerUid: string, planId: string) {
@@ -40,7 +40,11 @@ export async function setPumpControl(
     : opts.pumpOn
       ? "สั่งเปิดปั๊ม (มือ)"
       : "สั่งปิดปั๊ม (มือ)";
-  await logAdminActivity(ownerUid, planId, label);
+  try {
+    await logAdminActivity(ownerUid, planId, label);
+  } catch (err) {
+    console.warn("[farmControl] activity log failed", err);
+  }
 }
 
 export async function setMoistureThreshold(
@@ -90,4 +94,36 @@ export async function requestReboot(ownerUid: string, planId: string): Promise<v
   if (!database) throw new Error("Firebase not configured");
   await set(ref(database, `${planBase(ownerUid, planId)}/Pump/rebootRequest`), true);
   await logAdminActivity(ownerUid, planId, "ส่งคำสั่งรีบูตบอร์ด");
+}
+
+/** ปลดบอร์ด — เหมือนในแอป (DeviceRegistry + devices + plan node) */
+export async function deleteBoard(
+  ownerUid: string,
+  deviceId: string,
+  planId: string,
+): Promise<void> {
+  if (!database) throw new Error("Firebase not configured");
+
+  try {
+    await logAdminActivity(ownerUid, planId, `ปลดอุปกรณ์ ${deviceId}`);
+  } catch (err) {
+    console.warn("[farmControl] activity log before delete failed", err);
+  }
+
+  await update(ref(database, `DeviceRegistry/${deviceId}`), {
+    owner: "",
+    planId: "",
+    bound: false,
+  });
+  await remove(ref(database, `Doofarm/${ownerUid}/devices/${deviceId}`));
+  await remove(ref(database, `${planBase(ownerUid, planId)}`));
+
+  // กันบอร์ด sync ข้อมูลกลับก่อนเห็น owner="" (ตามแอป)
+  const planPath = planBase(ownerUid, planId);
+  window.setTimeout(() => {
+    void remove(ref(database!, planPath)).catch(() => {});
+  }, 3000);
+  window.setTimeout(() => {
+    void remove(ref(database!, planPath)).catch(() => {});
+  }, 8000);
 }

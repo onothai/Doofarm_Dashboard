@@ -3,6 +3,7 @@ import { signOut } from "firebase/auth";
 import { useEffect, useMemo, useState } from "react";
 import { auth } from "../firebase";
 import { DooFarmLogo } from "../components/DooFarmLogo";
+import { AlertsPanel, ProfilePanel } from "../components/HeaderPanels";
 import { GlobalSearch } from "../components/GlobalSearch";
 import { AdminDataProvider } from "../context/AdminDataContext";
 
@@ -46,6 +47,8 @@ function AdminLayoutInner() {
   const location = useLocation();
   const [q, setQ] = useState("");
   const [navOpen, setNavOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const pageTitle = useMemo(
     () => pageTitleFromPath(location.pathname),
@@ -116,12 +119,32 @@ function AdminLayoutInner() {
               <h1 className="adminPageTitle">{pageTitle}</h1>
             </div>
             <div className="adminTopRight">
-              <button type="button" className="adminIconBtn" aria-label="แจ้งเตือน">
+              <button
+                type="button"
+                className={`adminIconBtn ${alertsOpen ? "active" : ""}`}
+                aria-label="แจ้งเตือน"
+                aria-expanded={alertsOpen}
+                onClick={() => {
+                  setProfileOpen(false);
+                  setAlertsOpen((v) => !v);
+                }}
+              >
                 <IconBell />
               </button>
-              <button type="button" className="adminIconBtn" aria-label="โปรไฟล์">
+              <button
+                type="button"
+                className={`adminIconBtn ${profileOpen ? "active" : ""}`}
+                aria-label="โปรไฟล์"
+                aria-expanded={profileOpen}
+                onClick={() => {
+                  setAlertsOpen(false);
+                  setProfileOpen((v) => !v);
+                }}
+              >
                 <IconUser />
               </button>
+              <AlertsPanel open={alertsOpen} onClose={() => setAlertsOpen(false)} />
+              <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
             </div>
           </div>
 

@@ -12,7 +12,7 @@
       "$deviceId": {
         ".read": "auth != null",
 
-        ".write": "auth != null && (\n          !data.exists() ||\n          !data.child('owner').exists() ||\n          data.child('owner').val() === '' ||\n          data.child('owner').val() === auth.uid\n        )"
+        ".write": "auth != null && (\n          root.child('AdminUsers').child(auth.uid).val() === true ||\n          !data.exists() ||\n          !data.child('owner').exists() ||\n          data.child('owner').val() === '' ||\n          data.child('owner').val() === auth.uid\n        )"
       }
     },
 
@@ -31,13 +31,12 @@
 
         "devices": {
           "$deviceId": {
-            "name": {
-              ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
-            }
+            ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
           }
         },
 
         "$planId": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)",
           "Settings": {
             ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
           },

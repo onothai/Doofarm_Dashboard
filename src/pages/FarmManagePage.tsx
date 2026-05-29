@@ -1,9 +1,12 @@
 import { onValue, ref } from "firebase/database";
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ToggleSwitch } from "../components/ToggleSwitch";
+import { MoistureSlider } from "../components/MoistureSlider";
 import { useAdminDataContext } from "../context/AdminDataContext";
 import { database } from "../firebase";
 import {
+  deleteBoard,
   logAdminActivity,
   requestReboot,
   setFarmName,
@@ -11,6 +14,7 @@ import {
   setPumpControl,
   setSchedule,
 } from "../lib/farmControl";
+import { readPumpUiState, type PumpUiState } from "../lib/pumpState";
 import type { FarmAlertRow, PlanNode } from "../lib/rtdb-types";
 
 function fmtNum(v: number | undefined | null, suffix = ""): string {
@@ -18,7 +22,12 @@ function fmtNum(v: number | undefined | null, suffix = ""): string {
   return `${v.toFixed(v % 1 === 0 ? 0 : 1)}${suffix}`;
 }
 
+function pumpStatesMatch(a: PumpUiState, b: PumpUiState): boolean {
+  return a.autoMode === b.autoMode && a.pumpOn === b.pumpOn;
+}
+
 export function FarmManagePage() {
+  const navigate = useNavigate();
   const { ownerUid = "", planId = "" } = useParams();
   const { snapshot } = useAdminDataContext();
 
@@ -29,12 +38,15 @@ export function FarmManagePage() {
 
   const [plan, setPlan] = useState<PlanNode | null>(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [optimisticPump, setOptimisticPump] = useState<PumpUiState | null>(null);
   const [farmName, setFarmNameLocal] = useState("");
   const [moisture, setMoisture] = useState(30);
   const [scheduleOn, setScheduleOn] = useState("06:00");
   const [scheduleOff, setScheduleOff] = useState("06:30");
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const settingsDirtyRef = useRef(false);
+  const moistureDraggingRef = useRef(false);
 
   useEffect(() => {
     if (!database || !ownerUid || !planId) return;
@@ -42,13 +54,15 @@ export function FarmManagePage() {
     const unsub = onValue(pRef, (snap) => {
       const val = snap.exists() ? (snap.val() as PlanNode) : null;
       setPlan(val);
-      if (val?.Settings?.setValueMoisture != null) {
-        setMoisture(val.Settings.setValueMoisture);
-      }
-      if (val?.Settings?.scheduleOnTime) setScheduleOn(val.Settings.scheduleOnTime);
-      if (val?.Settings?.scheduleOffTime) setScheduleOff(val.Settings.scheduleOffTime);
-      if (typeof val?.Settings?.scheduleEnabled === "boolean") {
-        setScheduleEnabled(val.Settings.scheduleEnabled);
+      if (!settingsDirtyRef.current && !moistureDraggingRef.current) {
+        if (val?.Settings?.setValueMoisture != null) {
+          setMoisture(val.Settings.setValueMoisture);
+        }
+        if (val?.Settings?.scheduleOnTime) setScheduleOn(val.Settings.scheduleOnTime);
+        if (val?.Settings?.scheduleOffTime) setScheduleOff(val.Settings.scheduleOffTime);
+        if (typeof val?.Settings?.scheduleEnabled === "boolean") {
+          setScheduleEnabled(val.Settings.scheduleEnabled);
+        }
       }
     });
     return () => unsub();
@@ -58,9 +72,17 @@ export function FarmManagePage() {
     if (farmMeta?.farmName) setFarmNameLocal(farmMeta.farmName);
   }, [farmMeta?.farmName]);
 
+  const rtdbPump = useMemo(() => readPumpUiState(plan), [plan]);
+  const { autoMode, pumpOn } = optimisticPump ?? rtdbPump;
+
+  useEffect(() => {
+    if (!optimisticPump) return;
+    if (pumpStatesMatch(readPumpUiState(plan), optimisticPump)) {
+      setOptimisticPump(null);
+    }
+  }, [plan, optimisticPump]);
+
   const sensor = plan?.SensorRealtime;
-  const autoMode = plan?.Settings?.autoMode === true;
-  const pumpOn = plan?.Pump?.pumpStatus === 1;
 
   const recentAlerts = useMemo(() => {
     const rows = plan?.Alerts ?? {};
@@ -77,18 +99,39 @@ export function FarmManagePage() {
       .slice(0, 8);
   }, [plan?.ActivityLogs]);
 
-  const run = async (fn: () => Promise<void>, okMsg: string) => {
+  const run = async (fn: () => Promise<void>) => {
     setBusy(true);
-    setMsg(null);
+    setErrorMsg(null);
     try {
       await fn();
-      setMsg(okMsg);
-    } catch {
-      setMsg("ดำเนินการไม่สำเร็จ — ตรวจสอบสิทธิ์ Firebase Rules");
+    } catch (err) {
+      console.error("[FarmManage]", err);
+      setErrorMsg("ดำเนินการไม่สำเร็จ — ตรวจสอบ Firebase Rules และ AdminUsers/{uid}");
     } finally {
       setBusy(false);
     }
   };
+
+  const applyPump = useCallback(
+    async (next: PumpUiState) => {
+      if (busy) return;
+      if (pumpStatesMatch(next, rtdbPump) && !optimisticPump) return;
+
+      setOptimisticPump(next);
+      setBusy(true);
+      setErrorMsg(null);
+      try {
+        await setPumpControl(ownerUid, planId, next);
+      } catch (err) {
+        console.error("[FarmManage] pump", err);
+        setOptimisticPump(null);
+        setErrorMsg("สั่งปั๊มไม่สำเร็จ — ตรวจสอบสิทธิ์แอดมินใน Firebase");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, optimisticPump, ownerUid, planId, rtdbPump],
+  );
 
   if (!ownerUid || !planId) {
     return <div className="adminPage"><div className="adminBanner">ไม่พบแปลง</div></div>;
@@ -110,10 +153,14 @@ export function FarmManagePage() {
         </span>
       </div>
 
-      {msg ? <div className="adminBanner adminBannerOk">{msg}</div> : null}
+      {errorMsg ? (
+        <div className="farmManageToast adminBanner adminBannerErr" role="alert">
+          {errorMsg}
+        </div>
+      ) : null}
 
       <div className="farmManageGrid">
-        <section className="manageCard">
+        <section className="manageCard manageCardSensors">
           <h2>เซนเซอร์ Realtime</h2>
           <div className="sensorGrid">
             <div><span>อุณหภูมิ</span><strong>{fmtNum(sensor?.temperature, " °C")}</strong></div>
@@ -123,215 +170,207 @@ export function FarmManagePage() {
           </div>
         </section>
 
-        <section className="manageCard">
+        <section className="manageCard manageCardPump">
           <h2>ควบคุมปั๊ม (เหมือนในแอป)</h2>
           <p className="manageHint">
             แอดมินสั่งงานแทนลูกค้า — บันทึกลง ActivityLogs อัตโนมัติ
           </p>
-          <div className="manageRow">
-            <span>โหมด</span>
-            <div className="btnRow">
-              <button
-                type="button"
-                className={autoMode ? "btnTeal" : "btnBlack"}
-                disabled={busy}
-                onClick={() =>
-                  run(
-                    () => setPumpControl(ownerUid, planId, { autoMode: true, pumpOn }),
-                    "เปิดโหมดอัตโนมัติแล้ว",
-                  )
-                }
-              >
-                อัตโนมัติ
-              </button>
-              <button
-                type="button"
-                className={!autoMode ? "btnTeal" : "btnBlack"}
-                disabled={busy}
-                onClick={() =>
-                  run(
-                    () => setPumpControl(ownerUid, planId, { autoMode: false, pumpOn }),
-                    "เปิดโหมดมือแล้ว",
-                  )
-                }
-              >
-                มือ
-              </button>
+
+          <div className="controlToggles">
+            <ToggleSwitch
+              id="auto-mode"
+              label="โหมดอัตโนมัติ"
+              checked={autoMode}
+              disabled={busy}
+              onChange={(checked) => {
+                void applyPump({ autoMode: checked, pumpOn: checked ? pumpOn : pumpOn });
+              }}
+            />
+            <div className={`controlToggleSlot ${autoMode ? "isInactive" : ""}`}>
+              <ToggleSwitch
+                id="manual-pump"
+                label="เปิดปั๊ม (มือ)"
+                checked={pumpOn}
+                disabled={busy || autoMode}
+                onChange={(checked) => {
+                  void applyPump({ autoMode: false, pumpOn: checked });
+                }}
+              />
             </div>
           </div>
-          {!autoMode ? (
-            <div className="manageRow">
-              <span>ปั๊ม</span>
-              <div className="btnRow">
-                <button
-                  type="button"
-                  className={pumpOn ? "btnTeal" : "btnBlack"}
-                  disabled={busy}
-                  onClick={() =>
-                    run(
-                      () => setPumpControl(ownerUid, planId, { autoMode: false, pumpOn: true }),
-                      "สั่งเปิดปั๊มแล้ว",
-                    )
-                  }
-                >
-                  เปิดปั๊ม
-                </button>
-                <button
-                  type="button"
-                  className={!pumpOn ? "btnTeal" : "btnBlack"}
-                  disabled={busy}
-                  onClick={() =>
-                    run(
-                      () => setPumpControl(ownerUid, planId, { autoMode: false, pumpOn: false }),
-                      "สั่งปิดปั๊มแล้ว",
-                    )
-                  }
-                >
-                  ปิดปั๊ม
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="manageStatus">สถานะปั๊ม: {pumpOn ? "เปิด" : "ปิด"} (ออโต้)</p>
-          )}
+
           <button
             type="button"
-            className="btnBlack manageFullBtn"
+            className="btnBlack manageFullBtn manageRebootBtn"
             disabled={busy}
             onClick={() => {
               if (!window.confirm("ยืนยันรีบูตบอร์ด?")) return;
-              run(() => requestReboot(ownerUid, planId), "ส่งคำสั่งรีบูตแล้ว");
+              void run(() => requestReboot(ownerUid, planId));
             }}
           >
-            รีบูตบอร์ด
+            {busy ? "กำลังดำเนินการ…" : "รีบูตบอร์ด"}
+          </button>
+
+          <button
+            type="button"
+            className="btnDanger manageFullBtn"
+            disabled={busy || !farmMeta?.deviceId}
+            onClick={() => {
+              if (!farmMeta?.deviceId) return;
+              const deviceId = farmMeta.deviceId;
+              const ok = window.confirm(
+                `ยืนยันลบบอร์ด ${deviceId}?\n\nบอร์ดจะถูกปลดจากบัญชีลูกค้าและกลับสู่โหมดจับคู่ใหม่`,
+              );
+              if (!ok) return;
+              setBusy(true);
+              setErrorMsg(null);
+              void deleteBoard(ownerUid, deviceId, planId)
+                .then(() => navigate("/farms", { replace: true }))
+                .catch((err) => {
+                  console.error("[FarmManage] delete board", err);
+                  setErrorMsg("ลบบอร์ดไม่สำเร็จ — ตรวจสอบ Firebase Rules");
+                })
+                .finally(() => setBusy(false));
+            }}
+          >
+            ลบบอร์ด
           </button>
         </section>
 
-        <section className="manageCard">
+        <section className="manageCard manageSettingsCard">
           <h2>ตั้งค่าแปลง</h2>
-          <label className="manageField">
-            ชื่อแปลง
-            <input
-              className="loginInput"
-              value={farmName}
-              onChange={(e) => setFarmNameLocal(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className="btnTeal manageFullBtn"
-            disabled={busy || !farmMeta?.deviceId}
-            onClick={() =>
-              run(async () => {
-                if (!farmMeta?.deviceId) return;
-                await setFarmName(ownerUid, farmMeta.deviceId, farmName);
-                await logAdminActivity(ownerUid, planId, `เปลี่ยนชื่อแปลงเป็น "${farmName}"`);
-              }, "บันทึกชื่อแปลงแล้ว")
-            }
-          >
-            บันทึกชื่อแปลง
-          </button>
 
-          <label className="manageField">
-            ความชื้นดินเป้าหมาย (%)
-            <input
-              className="loginInput"
-              type="number"
-              min={0}
-              max={100}
-              value={moisture}
-              onChange={(e) => setMoisture(Number(e.target.value))}
-            />
-          </label>
-          <button
-            type="button"
-            className="btnTeal manageFullBtn"
-            disabled={busy}
-            onClick={() =>
-              run(
-                () => setMoistureThreshold(ownerUid, planId, moisture),
-                "บันทึกค่าความชื้นดินแล้ว",
-              )
-            }
-          >
-            บันทึกความชื้นดิน
-          </button>
-
-          <label className="manageCheck">
-            <input
-              type="checkbox"
-              checked={scheduleEnabled}
-              onChange={(e) => setScheduleEnabled(e.target.checked)}
-            />
-            เปิดตั้งเวลารดน้ำ
-          </label>
-          <div className="scheduleRow">
-            <label className="manageField">
-              เปิด
+          <div className="manageGroup">
+            <label className="manageField manageFieldTight">
+              ชื่อแปลง
               <input
                 className="loginInput"
-                type="time"
-                value={scheduleOn}
-                onChange={(e) => setScheduleOn(e.target.value)}
+                value={farmName}
+                onChange={(e) => setFarmNameLocal(e.target.value)}
               />
             </label>
-            <label className="manageField">
-              ปิด
-              <input
-                className="loginInput"
-                type="time"
-                value={scheduleOff}
-                onChange={(e) => setScheduleOff(e.target.value)}
-              />
-            </label>
+            <button
+              type="button"
+              className="btnTeal manageFullBtn"
+              disabled={busy || !farmMeta?.deviceId}
+              onClick={() =>
+                void run(async () => {
+                  if (!farmMeta?.deviceId) return;
+                  await setFarmName(ownerUid, farmMeta.deviceId, farmName);
+                  await logAdminActivity(ownerUid, planId, `เปลี่ยนชื่อแปลงเป็น "${farmName}"`);
+                })
+              }
+            >
+              บันทึกชื่อแปลง
+            </button>
           </div>
-          <button
-            type="button"
-            className="btnTeal manageFullBtn"
-            disabled={busy}
-            onClick={() =>
-              run(
-                () =>
-                  setSchedule(ownerUid, planId, {
+
+          <div className="manageGroup">
+            <div className="manageField manageFieldTight moistureField">
+              <span>ความชื้นดินเป้าหมาย</span>
+              <MoistureSlider
+                value={moisture}
+                disabled={busy}
+                onSlidingStart={() => {
+                  moistureDraggingRef.current = true;
+                }}
+                onValueChange={setMoisture}
+                onSlidingComplete={(val) => {
+                  moistureDraggingRef.current = false;
+                  void run(async () => {
+                    await setMoistureThreshold(ownerUid, planId, val);
+                  });
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="manageGroup manageScheduleGroup">
+            <ToggleSwitch
+              id="schedule-enabled"
+              label="เปิดตั้งเวลารดน้ำ"
+              checked={scheduleEnabled}
+              disabled={busy}
+              onChange={(checked) => {
+                settingsDirtyRef.current = true;
+                setScheduleEnabled(checked);
+              }}
+            />
+            <div className="scheduleRow">
+              <label className="manageField manageFieldTight">
+                เปิด
+                <input
+                  className="loginInput"
+                  type="time"
+                  value={scheduleOn}
+                  onChange={(e) => {
+                    settingsDirtyRef.current = true;
+                    setScheduleOn(e.target.value);
+                  }}
+                />
+              </label>
+              <label className="manageField manageFieldTight">
+                ปิด
+                <input
+                  className="loginInput"
+                  type="time"
+                  value={scheduleOff}
+                  onChange={(e) => {
+                    settingsDirtyRef.current = true;
+                    setScheduleOff(e.target.value);
+                  }}
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              className="btnTeal manageFullBtn"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await setSchedule(ownerUid, planId, {
                     enabled: scheduleEnabled,
                     onTime: scheduleOn,
                     offTime: scheduleOff,
-                  }),
-                "บันทึกตั้งเวลาแล้ว",
-              )
-            }
-          >
-            บันทึกตั้งเวลา
-          </button>
+                  });
+                  settingsDirtyRef.current = false;
+                })
+              }
+            >
+              บันทึกตั้งเวลา
+            </button>
+          </div>
         </section>
 
-        <section className="manageCard">
-          <h2>แจ้งเตือนล่าสุด</h2>
-          {recentAlerts.length === 0 ? (
-            <p className="manageMuted">ไม่มีแจ้งเตือน</p>
-          ) : (
-            <ul className="manageList">
-              {recentAlerts.map((a) => (
-                <li key={a.id}>{a.alertMessage ?? "—"}</li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <div className="farmManageSideCol">
+          <section className="manageCard manageCardAlerts">
+            <h2>แจ้งเตือนล่าสุด</h2>
+            {recentAlerts.length === 0 ? (
+              <p className="manageMuted">ไม่มีแจ้งเตือน</p>
+            ) : (
+              <ul className="manageList">
+                {recentAlerts.map((a) => (
+                  <li key={a.id}>{a.alertMessage ?? "—"}</li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-        <section className="manageCard">
-          <h2>กิจกรรมล่าสุด</h2>
-          {recentLogs.length === 0 ? (
-            <p className="manageMuted">ไม่มีบันทึก</p>
-          ) : (
-            <ul className="manageList">
-              {recentLogs.map((l, i) => (
-                <li key={`${l.timestampMs}-${i}`}>
-                  <strong>{l.timestamp ?? "—"}</strong> — {l.action ?? "—"}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          <section className="manageCard manageCardLogs">
+            <h2>กิจกรรมล่าสุด</h2>
+            {recentLogs.length === 0 ? (
+              <p className="manageMuted">ไม่มีบันทึก</p>
+            ) : (
+              <ul className="manageList">
+                {recentLogs.map((l, i) => (
+                  <li key={`${l.timestampMs}-${i}`}>
+                    <strong>{l.timestamp ?? "—"}</strong> — {l.action ?? "—"}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
