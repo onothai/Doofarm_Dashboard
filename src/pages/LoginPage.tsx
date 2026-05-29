@@ -39,6 +39,13 @@ export function LoginPage() {
         </div>
         <p className="loginHint">
           หน้านี้เข้าได้เฉพาะบัญชีแอดมินที่ได้รับอนุญาตเท่านั้น
+          {typeof window !== "undefined" && window.location.hostname.includes("github.io") ? (
+            <>
+              {" "}
+              — ถ้าล็อกอินไม่ได้ ให้เพิ่มโดเมน <code>onothai.github.io</code> ใน Firebase
+              Authentication → Authorized domains
+            </>
+          ) : null}
         </p>
         <label className="loginLabel">
           อีเมล

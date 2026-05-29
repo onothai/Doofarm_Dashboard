@@ -21,7 +21,13 @@ export default function App() {
       setUser(null);
       return;
     }
+
+    const timeout = window.setTimeout(() => {
+      setUser((current) => (current === undefined ? null : current));
+    }, 8000);
+
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
+      window.clearTimeout(timeout);
       if (nextUser && !isAllowedAdmin(nextUser.uid)) {
         await signOut(auth!);
         setUser(null);
@@ -29,7 +35,11 @@ export default function App() {
       }
       setUser(nextUser);
     });
-    return () => unsub();
+
+    return () => {
+      window.clearTimeout(timeout);
+      unsub();
+    };
   }, []);
 
   if (!firebaseConfigured) {
