@@ -1,0 +1,54 @@
+{
+  "rules": {
+    "AdminUsers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "DeviceRegistry": {
+      ".read": "auth != null",
+
+      "$deviceId": {
+        ".read": "auth != null",
+
+        ".write": "auth != null && (\n          !data.exists() ||\n          !data.child('owner').exists() ||\n          data.child('owner').val() === '' ||\n          data.child('owner').val() === auth.uid\n        )"
+      }
+    },
+
+    "Doofarm": {
+      ".read": "auth != null && root.child('AdminUsers').child(auth.uid).val() === true",
+
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)",
+        ".write": "auth != null && auth.uid === $uid",
+
+        "Profile": {
+          "expoPushToken": {
+            ".validate": "newData.isString()"
+          }
+        },
+
+        "devices": {
+          "$deviceId": {
+            "name": {
+              ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
+            }
+          }
+        },
+
+        "$planId": {
+          "Settings": {
+            ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
+          },
+          "Pump": {
+            ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
+          },
+          "ActivityLogs": {
+            ".write": "auth != null && (auth.uid === $uid || root.child('AdminUsers').child(auth.uid).val() === true)"
+          }
+        }
+      }
+    }
+  }
+}

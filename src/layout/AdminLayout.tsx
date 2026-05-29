@@ -1,0 +1,147 @@
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
+import { useEffect, useMemo, useState } from "react";
+import { auth } from "../firebase";
+import { DooFarmLogo } from "../components/DooFarmLogo";
+import { GlobalSearch } from "../components/GlobalSearch";
+import { AdminDataProvider } from "../context/AdminDataContext";
+
+function IconBell() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function IconUser() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function IconMenu() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+function pageTitleFromPath(pathname: string): string {
+  if (pathname.startsWith("/farms/manage")) return "จัดการแปลง";
+  if (pathname.startsWith("/farms")) return "แปลง / ฟาร์ม";
+  if (pathname.startsWith("/users")) return "ผู้ใช้";
+  if (pathname.startsWith("/devices")) return "บอร์ดอุปกรณ์";
+  if (pathname.startsWith("/logs")) return "บันทึกระบบ";
+  return "ภาพรวม";
+}
+
+function AdminLayoutInner() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [q, setQ] = useState("");
+  const [navOpen, setNavOpen] = useState(false);
+
+  const pageTitle = useMemo(
+    () => pageTitleFromPath(location.pathname),
+    [location.pathname],
+  );
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const fromUrl = params.get("q") ?? params.get("uid") ?? "";
+    if (fromUrl) setQ(fromUrl);
+  }, [location.search]);
+
+  const closeNav = () => setNavOpen(false);
+
+  return (
+    <div className="adminRoot">
+      {navOpen ? (
+        <button
+          type="button"
+          className="adminOverlay"
+          aria-label="ปิดเมนู"
+          onClick={closeNav}
+        />
+      ) : null}
+
+      <aside className={`adminSidebar ${navOpen ? "open" : ""}`}>
+        <div className="adminBrand">
+          <DooFarmLogo className="doofarmLogo doofarmLogoSidebar" />
+        </div>
+        <nav className="adminNav">
+          <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/" end onClick={closeNav}>
+            Dashboard
+          </NavLink>
+          <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/users" onClick={closeNav}>
+            Users
+          </NavLink>
+          <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/farms" onClick={closeNav}>
+            Farms
+          </NavLink>
+          <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/devices" onClick={closeNav}>
+            Devices
+          </NavLink>
+          <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/logs" onClick={closeNav}>
+            Logs
+          </NavLink>
+        </nav>
+        <button
+          type="button"
+          className="adminSignOut"
+          onClick={async () => {
+            if (!auth) return;
+            await signOut(auth);
+            navigate("/login", { replace: true });
+          }}
+        >
+          ออกจากระบบ
+        </button>
+      </aside>
+
+      <div className="adminMain">
+        <header className="adminHeader">
+          <div className="adminTopRow">
+            <button type="button" className="adminMenuBtn" aria-label="เปิดเมนู" onClick={() => setNavOpen(true)}>
+              <IconMenu />
+            </button>
+            <div className="adminPageIntro">
+              <p className="adminPageEyebrow">DooFarm Admin</p>
+              <h1 className="adminPageTitle">{pageTitle}</h1>
+            </div>
+            <div className="adminTopRight">
+              <button type="button" className="adminIconBtn" aria-label="แจ้งเตือน">
+                <IconBell />
+              </button>
+              <button type="button" className="adminIconBtn" aria-label="โปรไฟล์">
+                <IconUser />
+              </button>
+            </div>
+          </div>
+
+          <div className="adminSearchRow">
+            <GlobalSearch query={q} onQueryChange={setQ} />
+          </div>
+        </header>
+
+        <main className="adminOutlet">
+          <Outlet context={{ searchQuery: q }} />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export function AdminLayout() {
+  return (
+    <AdminDataProvider>
+      <AdminLayoutInner />
+    </AdminDataProvider>
+  );
+}

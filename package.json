@@ -1,0 +1,25 @@
+{
+  "name": "doofarm-admin-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^11.6.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@types/node": "^22.15.17",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "~5.9.2",
+    "vite": "^6.3.5"
+  }
+}
