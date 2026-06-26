@@ -5,11 +5,13 @@ import { useAdminDataContext } from "../context/AdminDataContext";
 import { applyTableSort } from "../hooks/useTableSort";
 import { markNotificationsAsSeen } from "../lib/alertReadState";
 import {
+  buildSortOptions,
   defaultDirForKind,
   type SortDir,
   type SortState,
   type SortValueKind,
 } from "../lib/tableSort";
+import { TableSortSelect } from "../components/TableSortSelect";
 import { useSystemNotifications } from "../hooks/useSystemNotifications";
 import { useUnreadNotifications } from "../hooks/useUnreadAlerts";
 import type { SystemNotification, SystemNotificationKind } from "../lib/systemNotifications";
@@ -35,6 +37,12 @@ const LOG_SORT_KIND: Record<LogSortKey, SortValueKind> = {
   desc: "thText",
   statusLabel: "thText",
 };
+
+const LOG_SORT_OPTIONS = buildSortOptions([
+  { key: "timeMs", label: "เวลา", kind: "number" },
+  { key: "desc", label: "รายละเอียด", kind: "thText" },
+  { key: "statusLabel", label: "สถานะ", kind: "thText" },
+]);
 
 const ALERT_GROUP_ORDER: SystemNotificationKind[] = ["db", "offline", "farm"];
 
@@ -215,6 +223,10 @@ export function LogsPage() {
     });
   }, []);
 
+  const setSortDirect = useCallback((key: LogSortKey, dir: SortDir) => {
+    setSort({ key, dir });
+  }, []);
+
   const sortConfig = { kindByKey: LOG_SORT_KIND, getValue: logGetValue };
 
   const sortedStatusRows = useMemo(
@@ -278,6 +290,15 @@ export function LogsPage() {
       </div>
 
       <p className="logTabHint">{tabHint}</p>
+
+      <div className="mobileSortBar">
+        <TableSortSelect
+          options={LOG_SORT_OPTIONS}
+          activeKey={sort.key}
+          dir={sort.dir}
+          onChange={setSortDirect}
+        />
+      </div>
 
       {tab === "status" ? (
         <LogTable

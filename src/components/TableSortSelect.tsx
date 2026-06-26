@@ -20,6 +20,7 @@ export function TableSortSelect<K extends string>({
       <span className="tableSortSelectLabel">Sort</span>
       <select
         className="tableSortSelect"
+        aria-label="เรียงข้อมูล"
         value={value}
         onChange={(e) => {
           const [key, selectedDir] = e.target.value.split(":") as [K, SortDir];
