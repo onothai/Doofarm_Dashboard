@@ -1,8 +1,51 @@
 import { useMemo } from "react";
 import { Link, useOutletContext } from "react-router-dom";
+import { SortableHeader } from "../components/SortableHeader";
+import { TableSortSelect } from "../components/TableSortSelect";
 import { useAdminDataContext } from "../context/AdminDataContext";
+import { useTableSort } from "../hooks/useTableSort";
+import { buildSortOptions, type SortValueKind } from "../lib/tableSort";
+import type { FarmRow } from "../lib/rtdb-types";
 
 type OutletCtx = { searchQuery: string };
+
+type FarmSortKey =
+  | "farmName"
+  | "planId"
+  | "ownerName"
+  | "deviceId"
+  | "temperature"
+  | "humidity"
+  | "soilMoisture"
+  | "pumpStatus"
+  | "autoMode"
+  | "online";
+
+const FARM_SORT_KIND: Record<FarmSortKey, SortValueKind> = {
+  farmName: "thText",
+  planId: "enText",
+  ownerName: "thText",
+  deviceId: "enText",
+  temperature: "number",
+  humidity: "number",
+  soilMoisture: "number",
+  pumpStatus: "number",
+  autoMode: "bool",
+  online: "bool",
+};
+
+const FARM_SORT_OPTIONS = buildSortOptions([
+  { key: "farmName", label: "ชื่อแปลง", kind: "thText" },
+  { key: "planId", label: "Plan ID", kind: "enText" },
+  { key: "ownerName", label: "เจ้าของ", kind: "thText" },
+  { key: "deviceId", label: "Device", kind: "enText" },
+  { key: "temperature", label: "อุณหภูมิ", kind: "number" },
+  { key: "humidity", label: "ความชื้นอากาศ", kind: "number" },
+  { key: "soilMoisture", label: "ความชื้นดิน", kind: "number" },
+  { key: "pumpStatus", label: "ปั๊ม", kind: "number" },
+  { key: "autoMode", label: "โหมดอัตโนมัติ", kind: "bool" },
+  { key: "online", label: "สถานะ", kind: "bool" },
+]);
 
 function fmtNum(v: number | undefined | null, suffix = ""): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "—";
@@ -29,6 +72,40 @@ export function FarmsPage() {
     );
   }, [q, snapshot.farms]);
 
+  const { sort, toggleSort, setSortDirect, sortedRows } = useTableSort<FarmRow, FarmSortKey>(
+    filtered,
+    {
+      defaultKey: "farmName",
+      kindByKey: FARM_SORT_KIND,
+      getValue: (row, key) => {
+        switch (key) {
+          case "farmName":
+            return row.farmName;
+          case "planId":
+            return row.planId;
+          case "ownerName":
+            return row.ownerName;
+          case "deviceId":
+            return row.deviceId;
+          case "temperature":
+            return row.sensor?.temperature ?? null;
+          case "humidity":
+            return row.sensor?.humidity ?? null;
+          case "soilMoisture":
+            return row.sensor?.soilMoisture ?? null;
+          case "pumpStatus":
+            return row.pumpStatus ?? null;
+          case "autoMode":
+            return row.autoMode ?? false;
+          case "online":
+            return row.online;
+        }
+      },
+    },
+  );
+
+  const headerProps = { activeKey: sort.key, dir: sort.dir, onSort: toggleSort };
+
   if (loading) {
     return (
       <div className="adminPage">
@@ -46,25 +123,31 @@ export function FarmsPage() {
           แปลงทั้งหมด: {snapshot.farms.length} · ออนไลน์:{" "}
           {snapshot.farms.filter((f) => f.online).length}
         </div>
+        <TableSortSelect
+          options={FARM_SORT_OPTIONS}
+          activeKey={sort.key}
+          dir={sort.dir}
+          onChange={setSortDirect}
+        />
       </div>
 
       <div className="adminTableWrap">
         <div className="adminTableHeader gridFarms">
-          <div>ชื่อแปลง</div>
-          <div>เจ้าของ</div>
-          <div>Device</div>
-          <div>อุณหภูมิ</div>
-          <div>ความชื้นอากาศ</div>
-          <div>ความชื้นดิน</div>
-          <div>ปั๊ม</div>
-          <div>สถานะ</div>
+          <SortableHeader label="ชื่อแปลง" sortKey="farmName" {...headerProps} />
+          <SortableHeader label="เจ้าของ" sortKey="ownerName" {...headerProps} />
+          <SortableHeader label="Device" sortKey="deviceId" {...headerProps} />
+          <SortableHeader label="อุณหภูมิ" sortKey="temperature" {...headerProps} />
+          <SortableHeader label="ความชื้นอากาศ" sortKey="humidity" {...headerProps} />
+          <SortableHeader label="ความชื้นดิน" sortKey="soilMoisture" {...headerProps} />
+          <SortableHeader label="ปั๊ม" sortKey="pumpStatus" {...headerProps} />
+          <SortableHeader label="สถานะ" sortKey="online" {...headerProps} />
           <div className="adminColActions" />
         </div>
 
-        {filtered.length === 0 ? (
+        {sortedRows.length === 0 ? (
           <div className="adminEmptyRow">ไม่พบแปลงที่ผูกอุปกรณ์</div>
         ) : (
-          filtered.map((f) => (
+          sortedRows.map((f) => (
             <div key={`${f.uid}-${f.deviceId}-${f.planId}`} className="adminTableRow gridFarms">
               <div data-label="ชื่อแปลง">
                 <strong>{f.farmName}</strong>

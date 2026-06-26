@@ -36,12 +36,12 @@ function IconMenu() {
 }
 
 function pageTitleFromPath(pathname: string): string {
-  if (pathname.startsWith("/farms/manage")) return "จัดการแปลง";
-  if (pathname.startsWith("/farms")) return "แปลง / ฟาร์ม";
-  if (pathname.startsWith("/users")) return "ผู้ใช้";
-  if (pathname.startsWith("/devices")) return "บอร์ดอุปกรณ์";
-  if (pathname.startsWith("/logs")) return "บันทึกระบบ";
-  return "ภาพรวม";
+  if (pathname.startsWith("/farms/manage")) return "Farm Manage";
+  if (pathname.startsWith("/farms")) return "Farms";
+  if (pathname.startsWith("/users")) return "Users";
+  if (pathname.startsWith("/devices")) return "Board";
+  if (pathname.startsWith("/logs")) return "Logs";
+  return "Overview";
 }
 
 function AdminLayoutInner() {
@@ -83,21 +83,21 @@ function AdminLayoutInner() {
           <DooFarmLogo className="doofarmLogo doofarmLogoSidebar" />
         </div>
         <nav className="adminNav">
-          <p className="adminNavLabel">เมนูหลัก</p>
+          <p className="adminNavLabel">Main Menu</p>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/" end onClick={closeNav}>
-            ภาพรวม
+            Overview
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/users" onClick={closeNav}>
-            ผู้ใช้
+            Users
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/farms" onClick={closeNav}>
-            แปลง
+            Farm
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/devices" onClick={closeNav}>
-            บอร์ด
+            Board
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/logs" onClick={closeNav}>
-            บันทึก
+            Logs
             {hasUnreadAlerts ? (
               <span className="navUnreadDot" aria-label="มีแจ้งเตือนใหม่" />
             ) : null}

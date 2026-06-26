@@ -7,7 +7,9 @@ import { useAdminDataContext } from "../context/AdminDataContext";
 import { database } from "../firebase";
 import {
   deleteBoard,
+  firebaseActionError,
   logAdminActivity,
+  rebootPrecheck,
   requestReboot,
   setFarmName,
   setMoistureThreshold,
@@ -20,6 +22,19 @@ import type { FarmAlertRow, PlanNode } from "../lib/rtdb-types";
 function fmtNum(v: number | undefined | null, suffix = ""): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "—";
   return `${v.toFixed(v % 1 === 0 ? 0 : 1)}${suffix}`;
+}
+
+function formatRelativeTh(ms: number): string {
+  const diff = Date.now() - ms;
+  if (!Number.isFinite(diff) || diff < 0) return "—";
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return "เมื่อสักครู่";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} นาทีที่แล้ว`;
+  const hr = Math.floor(min / 60);
+  if (hr < 48) return `${hr} ชั่วโมงที่แล้ว`;
+  const day = Math.floor(hr / 24);
+  return `${day} วันที่แล้ว`;
 }
 
 function pumpStatesMatch(a: PumpUiState, b: PumpUiState): boolean {
@@ -38,6 +53,10 @@ export function FarmManagePage() {
 
   const [plan, setPlan] = useState<PlanNode | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rebootBusy, setRebootBusy] = useState(false);
+  const [rebootNotice, setRebootNotice] = useState<{ kind: "success" | "error"; message: string } | null>(
+    null,
+  );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [optimisticPump, setOptimisticPump] = useState<PumpUiState | null>(null);
   const [farmName, setFarmNameLocal] = useState("");
@@ -99,6 +118,12 @@ export function FarmManagePage() {
       .slice(0, 8);
   }, [plan?.ActivityLogs]);
 
+  useEffect(() => {
+    if (!rebootNotice || rebootNotice.kind !== "success") return;
+    const timer = window.setTimeout(() => setRebootNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [rebootNotice]);
+
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setErrorMsg(null);
@@ -133,6 +158,41 @@ export function FarmManagePage() {
     [busy, optimisticPump, ownerUid, planId, rtdbPump],
   );
 
+  const handleReboot = async () => {
+    if (rebootBusy || busy) return;
+    if (!window.confirm("ยืนยันรีบูตบอร์ด?")) return;
+
+    const precheck = rebootPrecheck(ownerUid, planId, {
+      online: farmMeta?.online ?? false,
+      lastSeenText:
+        farmMeta?.online || farmMeta?.lastOnlineAt == null
+          ? undefined
+          : formatRelativeTh(farmMeta.lastOnlineAt),
+    });
+    if (precheck) {
+      setRebootNotice({ kind: "error", message: precheck });
+      return;
+    }
+
+    setRebootBusy(true);
+    setRebootNotice(null);
+    try {
+      await requestReboot(ownerUid, planId);
+      setRebootNotice({
+        kind: "success",
+        message: "ส่งคำสั่ง Reboot แล้ว — บอร์ดจะรีสตาร์ทในไม่กี่วินาที",
+      });
+    } catch (err) {
+      console.error("[FarmManage] reboot", err);
+      setRebootNotice({
+        kind: "error",
+        message: firebaseActionError(err, "ส่งคำสั่งรีบูตไม่สำเร็จ — ตรวจสอบ Firebase Rules"),
+      });
+    } finally {
+      setRebootBusy(false);
+    }
+  };
+
   if (!ownerUid || !planId) {
     return <div className="adminPage"><div className="adminBanner">ไม่พบแปลง</div></div>;
   }
@@ -156,6 +216,17 @@ export function FarmManagePage() {
       {errorMsg ? (
         <div className="farmManageToast adminBanner adminBannerErr" role="alert">
           {errorMsg}
+        </div>
+      ) : null}
+
+      {rebootNotice ? (
+        <div
+          className={`farmManageToast adminBanner ${
+            rebootNotice.kind === "success" ? "adminBannerOk" : "adminBannerErr"
+          }`}
+          role="status"
+        >
+          {rebootNotice.message}
         </div>
       ) : null}
 
@@ -201,14 +272,18 @@ export function FarmManagePage() {
 
           <button
             type="button"
-            className="btnBlack manageFullBtn manageRebootBtn"
-            disabled={busy}
+            className={`btnBlack manageFullBtn manageRebootBtn ${rebootBusy ? "isBusy" : ""}`}
+            disabled={busy || rebootBusy || !farmMeta?.online}
+            title={
+              farmMeta?.online
+                ? "ส่งคำสั่ง Reboot ไปยังบอร์ด"
+                : "บอร์ดออฟไลน์ — ต้องเชื่อมต่อก่อนจึง Reboot ได้"
+            }
             onClick={() => {
-              if (!window.confirm("ยืนยันรีบูตบอร์ด?")) return;
-              void run(() => requestReboot(ownerUid, planId));
+              void handleReboot();
             }}
           >
-            {busy ? "กำลังดำเนินการ…" : "รีบูตบอร์ด"}
+            {rebootBusy ? "กำลังส่งคำสั่ง…" : "Reboot"}
           </button>
 
           <button

@@ -1,9 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { SortableHeader } from "../components/SortableHeader";
+import { TableSortSelect } from "../components/TableSortSelect";
 import { useAdminDataContext } from "../context/AdminDataContext";
+import { useTableSort } from "../hooks/useTableSort";
+import { buildSortOptions, type SortValueKind } from "../lib/tableSort";
 import type { UserRow } from "../lib/rtdb-types";
 
 type OutletCtx = { searchQuery: string };
+
+type UserSortKey =
+  | "uid"
+  | "name"
+  | "email"
+  | "phone"
+  | "deviceCount"
+  | "notificationsEnabled";
+
+const USER_SORT_KIND: Record<UserSortKey, SortValueKind> = {
+  uid: "enText",
+  name: "thText",
+  email: "enText",
+  phone: "enText",
+  deviceCount: "number",
+  notificationsEnabled: "bool",
+};
+
+const USER_SORT_OPTIONS = buildSortOptions([
+  { key: "uid", label: "UID", kind: "enText" },
+  { key: "name", label: "ชื่อ", kind: "thText" },
+  { key: "email", label: "อีเมล", kind: "enText" },
+  { key: "phone", label: "โทรศัพท์", kind: "enText" },
+  { key: "deviceCount", label: "แปลง", kind: "number" },
+  { key: "notificationsEnabled", label: "แจ้งเตือน", kind: "bool" },
+]);
 
 export function UsersPage() {
   const { searchQuery } = useOutletContext<OutletCtx>();
@@ -29,10 +59,36 @@ export function UsersPage() {
     );
   }, [q, snapshot.users]);
 
+  const { sort, toggleSort, setSortDirect, sortedRows } = useTableSort<UserRow, UserSortKey>(
+    filtered,
+    {
+      defaultKey: "name",
+      kindByKey: USER_SORT_KIND,
+      getValue: (row, key) => {
+        switch (key) {
+          case "uid":
+            return row.uid;
+          case "name":
+            return row.name;
+          case "email":
+            return row.email;
+          case "phone":
+            return row.phone;
+          case "deviceCount":
+            return row.deviceCount;
+          case "notificationsEnabled":
+            return row.notificationsEnabled;
+        }
+      },
+    },
+  );
+
   const userFarms = useMemo(() => {
     if (!viewUser) return [];
     return snapshot.farms.filter((f) => f.uid === viewUser.uid);
   }, [viewUser, snapshot.farms]);
+
+  const headerProps = { activeKey: sort.key, dir: sort.dir, onSort: toggleSort };
 
   if (loading) {
     return (
@@ -48,23 +104,29 @@ export function UsersPage() {
 
       <div className="adminToolbar">
         <div className="sortPill">ผู้ใช้ทั้งหมด: {snapshot.users.length} คน</div>
+        <TableSortSelect
+          options={USER_SORT_OPTIONS}
+          activeKey={sort.key}
+          dir={sort.dir}
+          onChange={setSortDirect}
+        />
       </div>
 
       <div className="adminTableWrap">
         <div className="adminTableHeader gridUsers">
-          <div>UID</div>
-          <div>ชื่อ</div>
-          <div>อีเมล</div>
-          <div>โทรศัพท์</div>
-          <div>แปลง</div>
-          <div>แจ้งเตือน</div>
+          <SortableHeader label="UID" sortKey="uid" {...headerProps} />
+          <SortableHeader label="ชื่อ" sortKey="name" {...headerProps} />
+          <SortableHeader label="อีเมล" sortKey="email" {...headerProps} />
+          <SortableHeader label="โทรศัพท์" sortKey="phone" {...headerProps} />
+          <SortableHeader label="แปลง" sortKey="deviceCount" {...headerProps} />
+          <SortableHeader label="แจ้งเตือน" sortKey="notificationsEnabled" {...headerProps} />
           <div className="adminColActions" />
         </div>
 
-        {filtered.length === 0 ? (
+        {sortedRows.length === 0 ? (
           <div className="adminEmptyRow">ไม่พบผู้ใช้</div>
         ) : (
-          filtered.map((r) => (
+          sortedRows.map((r) => (
             <div key={r.uid} className="adminTableRow gridUsers">
               <div className="mono" title={r.uid} data-label="UID">
                 {r.uid.slice(0, 10)}…

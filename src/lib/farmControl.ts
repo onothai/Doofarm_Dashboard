@@ -90,6 +90,52 @@ export async function setFarmName(
   await set(ref(database, `Doofarm/${ownerUid}/devices/${deviceId}/name`), name.trim());
 }
 
+export const BOARD_ONLINE_MS = 120_000;
+
+export function isBoardOnline(lastOnlineAt: number | null | undefined): boolean {
+  if (lastOnlineAt == null || !Number.isFinite(lastOnlineAt)) return false;
+  return Date.now() - lastOnlineAt <= BOARD_ONLINE_MS;
+}
+
+export function firebaseActionError(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message === "Firebase not configured") {
+    return "ยังไม่ได้ตั้งค่า Firebase";
+  }
+  const code =
+    e != null && typeof e === "object" && "code" in e && typeof e.code === "string"
+      ? e.code
+      : "";
+  switch (code) {
+    case "PERMISSION_DENIED":
+      return "ไม่มีสิทธิ์ — ตรวจสอบ AdminUsers และ Database Rules";
+    case "UNAVAILABLE":
+    case "auth/network-request-failed":
+      return "เชื่อมต่อ Firebase ไม่ได้ ลองใหม่อีกครั้ง";
+    default:
+      return fallback;
+  }
+}
+
+export function rebootPrecheck(
+  ownerUid: string,
+  planId: string,
+  opts?: { online?: boolean; lastSeenText?: string },
+): string | null {
+  if (!database) return "ยังไม่ได้ตั้งค่า Firebase";
+  if (!ownerUid || ownerUid === "—") return "บอร์ดยังไม่ได้ผูกกับผู้ใช้";
+  if (!planId || planId === "—" || planId === "unknown") {
+    return "ไม่พบ Plan ID — ไม่สามารถส่งคำสั่งรีบูตได้";
+  }
+  if (opts?.online === false) {
+    const seen = opts.lastSeenText?.trim();
+    if (seen && seen !== "—") {
+      return `Reboot ไม่สำเร็จ — บอร์ดออฟไลน์ (${seen}) ต้องเชื่อมต่อก่อนจึงรับคำสั่งได้`;
+    }
+    return "Reboot ไม่สำเร็จ — บอร์ดออฟไลน์ ต้องเชื่อมต่อก่อนจึงรับคำสั่งได้";
+  }
+  return null;
+}
+
 export async function requestReboot(ownerUid: string, planId: string): Promise<void> {
   if (!database) throw new Error("Firebase not configured");
   await set(ref(database, `${planBase(ownerUid, planId)}/Pump/rebootRequest`), true);

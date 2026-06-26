@@ -165,7 +165,7 @@ export function DashboardPage() {
         </div>
         <div className="dashHeroLive">
           <span className="dashLiveDot" aria-hidden />
-          <span className="dashHeroLiveText">อัปเดตสด</span>
+          <span className="dashHeroLiveText">Live</span>
         </div>
       </header>
 
@@ -174,19 +174,19 @@ export function DashboardPage() {
           icon={<IconUsers />}
           tone="green"
           value={String(stats.totalUsers)}
-          label="ผู้ใช้"
+          label="Users"
         />
         <MetricCard
           icon={<IconFarm />}
           tone="teal"
           value={String(stats.totalFarms)}
-          label="แปลง"
+          label="Farm"
         />
         <MetricCard
           icon={<IconChip />}
           tone="slate"
           value={`${stats.onlineBoards}/${stats.totalBoards}`}
-          label="บอร์ด"
+          label="Board"
         />
       </div>
 

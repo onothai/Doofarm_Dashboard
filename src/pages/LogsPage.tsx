@@ -1,7 +1,15 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
+import { SortableHeader } from "../components/SortableHeader";
 import { useAdminDataContext } from "../context/AdminDataContext";
+import { applyTableSort } from "../hooks/useTableSort";
 import { markNotificationsAsSeen } from "../lib/alertReadState";
+import {
+  defaultDirForKind,
+  type SortDir,
+  type SortState,
+  type SortValueKind,
+} from "../lib/tableSort";
 import { useSystemNotifications } from "../hooks/useSystemNotifications";
 import { useUnreadNotifications } from "../hooks/useUnreadAlerts";
 import type { SystemNotification, SystemNotificationKind } from "../lib/systemNotifications";
@@ -12,11 +20,20 @@ type LogTab = "status" | "alerts" | "user";
 
 type LogStatusKind = "success" | "warning" | "error" | "neutral";
 
+type LogSortKey = "timeMs" | "desc" | "statusLabel";
+
 type LogRow = {
   time: string;
+  timeMs?: number;
   desc: string;
   statusLabel: string;
   statusKind: LogStatusKind;
+};
+
+const LOG_SORT_KIND: Record<LogSortKey, SortValueKind> = {
+  timeMs: "number",
+  desc: "thText",
+  statusLabel: "thText",
 };
 
 const ALERT_GROUP_ORDER: SystemNotificationKind[] = ["db", "offline", "farm"];
@@ -27,24 +44,49 @@ const ALERT_GROUP_LABEL: Record<SystemNotificationKind, string> = {
   farm: "แจ้งเตือนแปลง",
 };
 
+function logGetValue(row: LogRow, key: LogSortKey) {
+  switch (key) {
+    case "timeMs":
+      return row.timeMs ?? 0;
+    case "desc":
+      return row.desc;
+    case "statusLabel":
+      return row.statusLabel;
+  }
+}
+
 function LogStatusBadge({ label, kind }: { label: string; kind: LogStatusKind }) {
   return <span className={`logStatusBadge logStatusBadge--${kind}`}>{label}</span>;
 }
 
-function LogTable({ rows, emptyText }: { rows: LogRow[]; emptyText: string }) {
+function LogTable({
+  rows,
+  emptyText,
+  sortKey,
+  sortDir,
+  onSort,
+}: {
+  rows: LogRow[];
+  emptyText: string;
+  sortKey: LogSortKey;
+  sortDir: SortDir;
+  onSort: (key: LogSortKey) => void;
+}) {
   if (rows.length === 0) {
     return <div className="adminEmptyRow">{emptyText}</div>;
   }
 
+  const headerProps = { activeKey: sortKey, dir: sortDir, onSort };
+
   return (
     <div className="adminTableWrap">
       <div className="adminTableHeader gridLogs">
-        <div>เวลา</div>
-        <div>รายละเอียด</div>
-        <div>สถานะ</div>
+        <SortableHeader label="เวลา" sortKey="timeMs" {...headerProps} />
+        <SortableHeader label="รายละเอียด" sortKey="desc" {...headerProps} />
+        <SortableHeader label="สถานะ" sortKey="statusLabel" {...headerProps} />
       </div>
       {rows.map((r, idx) => (
-        <div key={`${idx}-${r.time}-${r.desc}`} className="adminTableRow gridLogs">
+        <div key={`${idx}-${r.timeMs ?? r.time}-${r.desc}`} className="adminTableRow gridLogs">
           <div className="mono" data-label="เวลา">{r.time}</div>
           <div data-label="รายละเอียด">{r.desc}</div>
           <div className="adminStatusCell" data-label="สถานะ">
@@ -66,6 +108,7 @@ function filterRows(rows: LogRow[], q: string): LogRow[] {
 function notificationToRow(n: SystemNotification): LogRow {
   return {
     time: n.time,
+    timeMs: n.timeMs,
     desc: n.desc,
     statusLabel: n.statusLabel,
     statusKind: n.statusKind,
@@ -92,6 +135,7 @@ function buildStatusRows(
     return [
       {
         time: "—",
+        timeMs: 0,
         desc: "กำลังตรวจสอบการเชื่อมต่อ Realtime Database…",
         statusLabel: "กำลังตรวจสอบ",
         statusKind: "warning",
@@ -102,6 +146,7 @@ function buildStatusRows(
   return [
     {
       time: formatCheckedAt(Date.now()),
+      timeMs: Date.now(),
       desc:
         rtdbConnected === true
           ? "เชื่อมต่อ Firebase Realtime Database สำเร็จ"
@@ -111,6 +156,7 @@ function buildStatusRows(
     },
     {
       time: "—",
+      timeMs: 0,
       desc: `ขอบเขตข้อมูล: ${scope === "all" && isAdmin ? "ทั้งระบบ (แอดมิน)" : "เฉพาะบัญชีที่ล็อกอิน"}`,
       statusLabel: "ปกติ",
       statusKind: "neutral",
@@ -145,14 +191,47 @@ export function LogsPage() {
   const userRows = useMemo((): LogRow[] => {
     return snapshot.activities.slice(0, 100).map((row) => ({
       time: row.timestamp ?? "-",
+      timeMs: typeof row.timestampMs === "number" ? row.timestampMs : 0,
       desc: `[${row.ownerEmail}] ${row.action ?? "-"}`,
       statusLabel: "บันทึกแล้ว",
       statusKind: "neutral" as const,
     }));
   }, [snapshot.activities]);
 
-  const filteredStatusRows = useMemo(() => filterRows(statusRows, q), [statusRows, q]);
-  const filteredUserRows = useMemo(() => filterRows(userRows, q), [userRows, q]);
+  const filteredStatusBase = useMemo(() => filterRows(statusRows, q), [statusRows, q]);
+  const filteredUserBase = useMemo(() => filterRows(userRows, q), [userRows, q]);
+
+  const [sort, setSort] = useState<SortState<LogSortKey>>({
+    key: "timeMs",
+    dir: defaultDirForKind("number"),
+  });
+
+  const toggleSort = useCallback((key: LogSortKey) => {
+    setSort((prev) => {
+      if (prev.key === key) {
+        return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+      }
+      return { key, dir: defaultDirForKind(LOG_SORT_KIND[key]) };
+    });
+  }, []);
+
+  const sortConfig = { kindByKey: LOG_SORT_KIND, getValue: logGetValue };
+
+  const sortedStatusRows = useMemo(
+    () => applyTableSort(filteredStatusBase, sort, sortConfig),
+    [filteredStatusBase, sort],
+  );
+
+  const sortedUserRows = useMemo(
+    () => applyTableSort(filteredUserBase, sort, sortConfig),
+    [filteredUserBase, sort],
+  );
+
+  const logTableProps = {
+    sortKey: sort.key,
+    sortDir: sort.dir,
+    onSort: toggleSort,
+  };
 
   if (loading) {
     return (
@@ -201,7 +280,11 @@ export function LogsPage() {
       <p className="logTabHint">{tabHint}</p>
 
       {tab === "status" ? (
-        <LogTable rows={filteredStatusRows} emptyText="ไม่พบข้อมูลสถานะ" />
+        <LogTable
+          rows={sortedStatusRows}
+          emptyText="ไม่พบข้อมูลสถานะ"
+          {...logTableProps}
+        />
       ) : null}
 
       {tab === "alerts" ? (
@@ -210,7 +293,11 @@ export function LogsPage() {
         ) : (
           <div className="logSections">
             {alertGroups.map((group) => {
-              const rows = filterRows(group.items.map(notificationToRow), q);
+              const rows = applyTableSort(
+                filterRows(group.items.map(notificationToRow), q),
+                sort,
+                sortConfig,
+              );
               if (q && rows.length === 0) return null;
               return (
                 <section key={group.kind} className="logSection">
@@ -221,6 +308,7 @@ export function LogsPage() {
                   <LogTable
                     rows={rows}
                     emptyText={`ไม่พบ${group.title}ที่ค้นหา`}
+                    {...logTableProps}
                   />
                 </section>
               );
@@ -230,7 +318,11 @@ export function LogsPage() {
       ) : null}
 
       {tab === "user" ? (
-        <LogTable rows={filteredUserRows} emptyText="ไม่พบบันทึกกิจกรรม" />
+        <LogTable
+          rows={sortedUserRows}
+          emptyText="ไม่พบบันทึกกิจกรรม"
+          {...logTableProps}
+        />
       ) : null}
     </div>
   );
