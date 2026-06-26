@@ -144,6 +144,7 @@ input {
 }
 
 .adminNavItem {
+  position: relative;
   height: 48px;
   border-radius: 14px;
   display: flex;
@@ -164,6 +165,22 @@ input {
   background: #ffffff;
   color: var(--df-green-dark);
   box-shadow: var(--df-shadow-sm);
+}
+
+.navUnreadDot {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+.adminNavItem.active .navUnreadDot {
+  box-shadow: 0 0 0 2px rgba(34, 139, 34, 0.15);
 }
 
 .adminSignOut {
@@ -624,6 +641,7 @@ a.btnTeal {
 }
 
 .adminIconBtn {
+  position: relative;
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -645,6 +663,21 @@ a.btnTeal {
   background: var(--df-green);
   color: #ffffff;
   border-color: var(--df-green);
+}
+
+.headerIconUnreadDot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px var(--df-surface);
+}
+
+.adminIconBtn.active .headerIconUnreadDot {
+  box-shadow: 0 0 0 2px var(--df-green);
 }
 
 .headerPanelBackdrop {
@@ -1067,8 +1100,8 @@ a.btnTeal {
 }
 
 .gridLogs {
-  grid-template-columns: 170px minmax(200px, 1fr) 72px;
-  min-width: 520px;
+  grid-template-columns: 170px minmax(200px, 1fr) minmax(108px, 130px);
+  min-width: 560px;
 }
 
 .adminColActions {
@@ -1249,6 +1282,189 @@ a.btnTeal {
   max-width: 100%;
 }
 
+/* —— Dashboard (modern) —— */
+.dashHero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.dashHeroEyebrow {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.dashHeroTitle {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.dashHeroSub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: rgba(17, 17, 17, 0.62);
+  line-height: 1.45;
+}
+
+.dashHeroLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--df-green-dark);
+  box-shadow: var(--df-shadow-sm);
+}
+
+.dashLiveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  animation: dashPulse 2s ease-in-out infinite;
+}
+
+@keyframes dashPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.dashMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.dashMetric {
+  background: #ffffff;
+  border-radius: var(--df-radius-lg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 18px 18px 16px;
+  box-shadow: var(--df-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.dashMetric:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
+}
+
+.dashMetricHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dashMetricIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.dashMetric--green .dashMetricIcon {
+  background: rgba(34, 139, 34, 0.12);
+  color: var(--df-green-dark);
+}
+
+.dashMetric--teal .dashMetricIcon {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d9488;
+}
+
+.dashMetric--amber .dashMetricIcon {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.dashMetric--slate .dashMetricIcon {
+  background: rgba(71, 85, 105, 0.12);
+  color: #475569;
+}
+
+.dashMetric--alert {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 40%);
+}
+
+.dashUnreadDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22);
+  animation: dashPulse 2s ease-in-out infinite;
+}
+
+.dashMetricValue {
+  font-size: clamp(26px, 3.5vw, 34px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #111111;
+}
+
+.dashMetricLabel {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(17, 17, 17, 0.78);
+}
+
+.chartPanelModern {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: #111111;
+  box-shadow: var(--df-shadow-sm);
+}
+
+.chartPanelTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.chartPanelSub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.chartLegendModern {
+  color: rgba(17, 17, 17, 0.72);
+}
+
+.chartInnerModern {
+  background: #f8faf9;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
 .statCard,
 .donutCard {
   min-width: 0;
@@ -1258,6 +1474,12 @@ a.btnTeal {
   font-size: clamp(28px, 4vw, 40px);
   font-weight: 800;
   line-height: 1;
+}
+
+.statBigSub {
+  font-size: 0.55em;
+  font-weight: 700;
+  opacity: 0.88;
 }
 
 .statGridSecond {
@@ -1545,6 +1767,7 @@ a.btnTeal {
 }
 
 .logTab {
+  position: relative;
   border: none;
   cursor: pointer;
   border-radius: 999px;
@@ -1554,14 +1777,110 @@ a.btnTeal {
   color: var(--df-green-dark);
 }
 
+.logTabUnreadDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 999px;
+  background: #ef4444;
+  vertical-align: middle;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.logTab.active .logTabUnreadDot {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
 .logTab.active {
   background: var(--df-green);
   color: #ffffff;
 }
 
+.logTabHint {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(17, 17, 17, 0.58);
+  line-height: 1.45;
+}
+
+.logSections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.logSection {
+  min-width: 0;
+}
+
+.logSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.logSectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--df-green-dark);
+}
+
+.logSectionCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(17, 17, 17, 0.5);
+  white-space: nowrap;
+}
+
+.logSectionEmpty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: rgba(17, 17, 17, 0.55);
+  background: var(--df-surface);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--df-radius-lg);
+}
+
 .adminStatusCell {
-  display: grid;
-  place-items: center;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.logStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.logStatusBadge--success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.logStatusBadge--warning {
+  background: rgba(234, 179, 8, 0.18);
+  color: #a16207;
+}
+
+.logStatusBadge--error {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+.logStatusBadge--neutral {
+  background: rgba(42, 93, 82, 0.1);
+  color: var(--df-green-dark);
 }
 
 .dot {
@@ -1695,8 +2014,29 @@ a.btnTeal {
   font-size: 13px;
 }
 
+.modalFarmItemLink {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modalFarmItemLink:hover {
+  border-color: rgba(42, 93, 82, 0.35);
+  background: rgba(111, 173, 138, 0.08);
+  box-shadow: var(--df-shadow-sm);
+}
+
+.modalFarmItemAction {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--df-green);
+  margin-top: 2px;
+}
+
 @media (max-width: 1200px) {
-  .dashboardPage .statGrid {
+  .dashboardPage .statGrid,
+  .dashMetricGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1752,7 +2092,8 @@ a.btnTeal {
 
 @media (max-width: 640px) {
   .dashboardPage .statGrid,
-  .statGridSecond {
+  .statGridSecond,
+  .dashMetricGrid {
     grid-template-columns: 1fr;
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { useAdminDataContext } from "../context/AdminDataContext";
 import type { UserRow } from "../lib/rtdb-types";
 
@@ -121,13 +121,19 @@ export function UsersPage() {
               ) : (
                 <div className="modalFarmList">
                   {userFarms.map((f) => (
-                    <div key={`${f.deviceId}-${f.planId}`} className="modalFarmItem">
+                    <Link
+                      key={`${f.deviceId}-${f.planId}`}
+                      to={`/farms/manage/${encodeURIComponent(f.uid)}/${encodeURIComponent(f.planId)}`}
+                      className="modalFarmItem modalFarmItemLink"
+                      onClick={() => setViewUser(null)}
+                    >
                       <strong>{f.farmName}</strong>
                       <span>
                         {f.deviceId} · {f.planId} ·{" "}
                         {f.online ? "ออนไลน์" : "ออฟไลน์"}
                       </span>
-                    </div>
+                      <span className="modalFarmItemAction">จัดการแปลง →</span>
+                    </Link>
                   ))}
                 </div>
               )}

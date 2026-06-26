@@ -6,6 +6,8 @@ import { DooFarmLogo } from "../components/DooFarmLogo";
 import { AlertsPanel, ProfilePanel } from "../components/HeaderPanels";
 import { GlobalSearch } from "../components/GlobalSearch";
 import { AdminDataProvider } from "../context/AdminDataContext";
+import { useSystemNotifications } from "../hooks/useSystemNotifications";
+import { useUnreadNotifications } from "../hooks/useUnreadAlerts";
 
 function IconBell() {
   return (
@@ -45,6 +47,8 @@ function pageTitleFromPath(pathname: string): string {
 function AdminLayoutInner() {
   const navigate = useNavigate();
   const location = useLocation();
+  const notifications = useSystemNotifications();
+  const hasUnreadAlerts = useUnreadNotifications(notifications);
   const [q, setQ] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -93,6 +97,9 @@ function AdminLayoutInner() {
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/logs" onClick={closeNav}>
             Logs
+            {hasUnreadAlerts ? (
+              <span className="navUnreadDot" aria-label="มีแจ้งเตือนใหม่" />
+            ) : null}
           </NavLink>
         </nav>
         <button
@@ -130,6 +137,9 @@ function AdminLayoutInner() {
                 }}
               >
                 <IconBell />
+                {hasUnreadAlerts ? (
+                  <span className="headerIconUnreadDot" aria-label="มีแจ้งเตือนใหม่" />
+                ) : null}
               </button>
               <button
                 type="button"

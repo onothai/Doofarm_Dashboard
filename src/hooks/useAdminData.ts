@@ -16,6 +16,7 @@ export type AdminDataState = {
   loading: boolean;
   scope: "all" | "self";
   permHint: string | null;
+  rtdbConnected: boolean | null;
 };
 
 export function useAdminData(): AdminDataState {
@@ -27,6 +28,14 @@ export function useAdminData(): AdminDataState {
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<"all" | "self">("self");
   const [permHint, setPermHint] = useState<string | null>(null);
+  const [rtdbConnected, setRtdbConnected] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!database) return;
+    const cRef = ref(database, ".info/connected");
+    const unsub = onValue(cRef, (snap) => setRtdbConnected(snap.val() === true));
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (!database || !auth) {
@@ -158,5 +167,6 @@ export function useAdminData(): AdminDataState {
     loading,
     scope,
     permHint,
+    rtdbConnected,
   };
 }

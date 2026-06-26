@@ -1,8 +1,7 @@
 import { signOut } from "firebase/auth";
-import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ALLOWED_ADMIN_UID } from "../adminAccess";
-import { useAdminDataContext } from "../context/AdminDataContext";
+import { useSystemNotifications } from "../hooks/useSystemNotifications";
 import { auth } from "../firebase";
 
 type PanelProps = {
@@ -12,12 +11,7 @@ type PanelProps = {
 
 export function AlertsPanel({ open, onClose }: PanelProps) {
   const navigate = useNavigate();
-  const { snapshot } = useAdminDataContext();
-
-  const alerts = useMemo(
-    () => snapshot.alerts.slice(0, 12),
-    [snapshot.alerts],
-  );
+  const notifications = useSystemNotifications();
 
   if (!open) return null;
 
@@ -26,29 +20,33 @@ export function AlertsPanel({ open, onClose }: PanelProps) {
       <button type="button" className="headerPanelBackdrop" aria-label="ปิด" onClick={onClose} />
       <div className="headerPanel headerPanelAlerts">
         <div className="headerPanelHead">
-          <strong>แจ้งเตือนล่าสุด</strong>
+          <strong>แจ้งเตือนระบบ</strong>
           <button type="button" className="headerPanelClose" onClick={onClose}>
             ×
           </button>
         </div>
         <div className="headerPanelBody">
-          {alerts.length === 0 ? (
-            <p className="headerPanelEmpty">ไม่มีแจ้งเตือนในระบบ</p>
+          {notifications.length === 0 ? (
+            <p className="headerPanelEmpty">ไม่มีแจ้งเตือน — ระบบปกติ</p>
           ) : (
-            alerts.map((a) => (
+            notifications.slice(0, 12).map((n) => (
               <button
-                key={`${a.uid}-${a.alertId}`}
+                key={n.id}
                 type="button"
                 className="headerPanelItem"
                 onClick={() => {
                   onClose();
-                  navigate(
-                    `/farms/manage/${encodeURIComponent(a.uid)}/${encodeURIComponent(a.planId)}`,
-                  );
+                  if (n.uid && n.planId) {
+                    navigate(
+                      `/farms/manage/${encodeURIComponent(n.uid)}/${encodeURIComponent(n.planId)}`,
+                    );
+                  } else {
+                    navigate("/logs");
+                  }
                 }}
               >
-                <span className="headerPanelItemTitle">{a.alertMessage ?? "—"}</span>
-                <span className="headerPanelItemSub">{a.ownerEmail}</span>
+                <span className="headerPanelItemTitle">{n.desc}</span>
+                <span className="headerPanelItemSub">{n.statusLabel}</span>
               </button>
             ))
           )}
@@ -61,7 +59,7 @@ export function AlertsPanel({ open, onClose }: PanelProps) {
             navigate("/logs");
           }}
         >
-          ดูบันทึกทั้งหมด
+          ดูใน Logs → แจ้งเตือน
         </button>
       </div>
     </>
