@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAdminDataContext } from "../context/AdminDataContext";
 import {
   type ActivityRow,
@@ -65,9 +65,34 @@ function MetricCard({ icon, tone, value, label }: MetricCardProps) {
   );
 }
 
+function useLiveClock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return now;
+}
+
 export function DashboardPage() {
   const { snapshot, loading, permHint, isAdmin } = useAdminDataContext();
   const { stats, activities } = snapshot;
+  const now = useLiveClock();
+
+  const dateLabel = now.toLocaleDateString("th-TH", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const timeLabel = now.toLocaleTimeString("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   const logs = useMemo(() => activities as ActivityRow[], [activities]);
 
@@ -119,13 +144,6 @@ export function DashboardPage() {
 
   const yTicks = useMemo(() => buildYTicks(barDays.scaleMax), [barDays.scaleMax]);
 
-  const todayLabel = new Date().toLocaleDateString("th-TH", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
   if (loading) {
     return (
       <div className="adminPage dashboardPage">
@@ -139,16 +157,15 @@ export function DashboardPage() {
       {permHint && !isAdmin ? <div className="adminBanner">{permHint}</div> : null}
 
       <header className="dashHero">
-        <div>
-          <p className="dashHeroEyebrow">{todayLabel}</p>
-          <h2 className="dashHeroTitle">สรุปภาพรวม DooFarm</h2>
-          <p className="dashHeroSub">
-            อัปเดตสด · {stats.totalFarms} แปลง · {stats.totalBoards} บอร์ด
-          </p>
+        <div className="dashHeroMain">
+          <p className="dashHeroDate">{dateLabel}</p>
+          <time className="dashHeroClock" dateTime={now.toISOString()}>
+            {timeLabel}
+          </time>
         </div>
         <div className="dashHeroLive">
-          <span className="dashLiveDot" />
-          Live
+          <span className="dashLiveDot" aria-hidden />
+          <span className="dashHeroLiveText">อัปเดตสด</span>
         </div>
       </header>
 
@@ -173,7 +190,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <section className="chartPanel chartPanelModern">
+      <section className="chartPanelModern">
         <div className="chartPanelTitleRow">
           <div>
             <div className="chartPanelTitle">กิจกรรม 15 วันล่าสุด</div>
@@ -185,7 +202,7 @@ export function DashboardPage() {
             <span className="lg lgPro">ระบบ / แจ้งเตือน</span>
           </div>
         </div>
-        <div className="chartInner chartInnerModern">
+        <div className="chartInnerModern">
           <div className="chartScroll">
             <div className="barChart">
               <div className="barYAxis">

@@ -4,6 +4,29 @@ import { isAllowedAdmin } from "../adminAccess";
 import { DooFarmLogo } from "../components/DooFarmLogo";
 import { auth } from "../firebase";
 
+function loginErrorMessage(e: unknown): string {
+  const code =
+    e != null && typeof e === "object" && "code" in e && typeof e.code === "string"
+      ? e.code
+      : "";
+
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+    case "auth/invalid-email":
+      return "อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง";
+    case "auth/too-many-requests":
+      return "ลองเข้าระบบหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่";
+    case "auth/network-request-failed":
+      return "เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่";
+    case "auth/user-disabled":
+      return "บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ";
+    default:
+      return "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมลและรหัสผ่าน";
+  }
+}
+
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,12 +42,11 @@ export function LoginPage() {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       if (!isAllowedAdmin(cred.user.uid)) {
         await signOut(auth);
-        setErr("บัญชีนี้ไม่มีสิทธิ์เข้า Dashboard — อนุญาตเฉพาะบัญชีแอดมินที่กำหนดไว้");
+        setErr("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งาน กรุณาใช้บัญชีแอดมินที่ได้รับอนุญาต");
         return;
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "เข้าสู่ระบบไม่สำเร็จ";
-      setErr(msg);
+      setErr(loginErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -37,16 +59,6 @@ export function LoginPage() {
           <DooFarmLogo className="doofarmLogo doofarmLogoLogin" />
           <p className="loginSubtitle">Admin Dashboard</p>
         </div>
-        <p className="loginHint">
-          หน้านี้เข้าได้เฉพาะบัญชีแอดมินที่ได้รับอนุญาตเท่านั้น
-          {typeof window !== "undefined" && window.location.hostname.includes("github.io") ? (
-            <>
-              {" "}
-              — ถ้าล็อกอินไม่ได้ ให้เพิ่มโดเมน <code>onothai.github.io</code> ใน Firebase
-              Authentication → Authorized domains
-            </>
-          ) : null}
-        </p>
         <label className="loginLabel">
           อีเมล
           <input

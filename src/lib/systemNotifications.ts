@@ -14,8 +14,16 @@ export type SystemNotification = {
   planId?: string;
 };
 
-function formatNowTh(): string {
-  return new Date().toLocaleString("th-TH", {
+function timestampMs(raw: number | null | undefined): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
+  return raw < 1e12 ? raw * 1000 : raw;
+}
+
+function formatTimeMs(ms: number): string {
+  if (ms <= 0) return "—";
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("th-TH", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -26,24 +34,7 @@ function formatNowTh(): string {
 }
 
 function alertTimeMs(row: AlertEntry): number {
-  const t = row.alertTime;
-  if (typeof t !== "number" || !Number.isFinite(t)) return 0;
-  return t < 1e12 ? t * 1000 : t;
-}
-
-function formatAlertTime(row: AlertEntry): string {
-  const ms = alertTimeMs(row);
-  if (ms <= 0) return "-";
-  const d = new Date(ms);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("th-TH", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return timestampMs(row.alertTime);
 }
 
 function farmNameFor(snapshot: AdminSnapshot, uid: string, planId: string): string {
@@ -57,13 +48,12 @@ export function buildSystemNotifications(
 ): SystemNotification[] {
   const items: SystemNotification[] = [];
   const nowMs = Date.now();
-  const nowStr = formatNowTh();
 
   if (connected === false) {
     items.push({
       id: "sys:db-disconnected",
       kind: "db",
-      time: nowStr,
+      time: formatTimeMs(nowMs),
       timeMs: nowMs,
       desc: "ขาดการเชื่อมต่อ Firebase Realtime Database",
       statusLabel: "ขาดการเชื่อมต่อ",
@@ -73,12 +63,16 @@ export function buildSystemNotifications(
 
   for (const farm of snapshot.farms) {
     if (farm.online || farm.deviceId === "—") continue;
+    const lastMs = timestampMs(farm.lastOnlineAt);
     items.push({
       id: `sys:offline:${farm.uid}:${farm.planId}`,
       kind: "offline",
-      time: nowStr,
-      timeMs: nowMs,
-      desc: `แปลง "${farm.farmName}" (${farm.ownerEmail}) — บอร์ดออฟไลน์`,
+      time: formatTimeMs(lastMs),
+      timeMs: lastMs || nowMs,
+      desc:
+        lastMs > 0
+          ? `แปลง "${farm.farmName}" (${farm.ownerEmail}) — บอร์ดออฟไลน์`
+          : `แปลง "${farm.farmName}" (${farm.ownerEmail}) — บอร์ดออฟไลน์ (ไม่เคยเชื่อมต่อ)`,
       statusLabel: "บอร์ดออฟไลน์",
       statusKind: "warning",
       uid: farm.uid,
@@ -88,11 +82,12 @@ export function buildSystemNotifications(
 
   for (const alert of snapshot.alerts) {
     const farmName = farmNameFor(snapshot, alert.uid, alert.planId);
+    const alertMs = alertTimeMs(alert);
     items.push({
       id: `sys:alert:${alert.uid}:${alert.planId}:${alert.alertId}`,
       kind: "farm",
-      time: formatAlertTime(alert),
-      timeMs: alertTimeMs(alert) || nowMs,
+      time: formatTimeMs(alertMs),
+      timeMs: alertMs || nowMs,
       desc: `แปลง "${farmName}" — ${alert.alertMessage ?? "—"} (${alert.ownerEmail})`,
       statusLabel: "แจ้งเตือนแปลง",
       statusKind: "error",

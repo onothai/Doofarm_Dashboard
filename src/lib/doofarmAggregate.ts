@@ -108,6 +108,7 @@ export function aggregateDoofarm(
             ? plan.Settings.setValueMoisture
             : null,
         online: boardOnline(lastOnline),
+        lastOnlineAt: lastOnline ?? null,
         fwVersion: reg?.fwVersion ? String(reg.fwVersion) : null,
       });
       seenFarmKeys.add(`${uid}:${planId}`);
@@ -120,6 +121,10 @@ export function aggregateDoofarm(
       const deviceId =
         plan.Settings?.deviceId ??
         (planId.startsWith("plan_") ? planId.replace(/^plan_/, "DF-") : "—");
+
+      const regRow = registry[String(deviceId)];
+      const lastOnline =
+        typeof regRow?.lastOnlineAt === "number" ? regRow.lastOnlineAt : undefined;
 
       farms.push({
         uid,
@@ -137,10 +142,9 @@ export function aggregateDoofarm(
           typeof plan.Settings?.setValueMoisture === "number"
             ? plan.Settings.setValueMoisture
             : null,
-        online: boardOnline(registry[String(deviceId)]?.lastOnlineAt),
-        fwVersion: registry[String(deviceId)]?.fwVersion
-          ? String(registry[String(deviceId)]!.fwVersion)
-          : null,
+        online: boardOnline(lastOnline),
+        lastOnlineAt: lastOnline ?? null,
+        fwVersion: regRow?.fwVersion ? String(regRow.fwVersion) : null,
       });
     }
 

@@ -72,6 +72,52 @@ function notificationToRow(n: SystemNotification): LogRow {
   };
 }
 
+function formatCheckedAt(ms: number): string {
+  return new Date(ms).toLocaleString("th-TH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function buildStatusRows(
+  rtdbConnected: boolean | null,
+  scope: "all" | "self",
+  isAdmin: boolean,
+): LogRow[] {
+  if (rtdbConnected === null) {
+    return [
+      {
+        time: "—",
+        desc: "กำลังตรวจสอบการเชื่อมต่อ Realtime Database…",
+        statusLabel: "กำลังตรวจสอบ",
+        statusKind: "warning",
+      },
+    ];
+  }
+
+  return [
+    {
+      time: formatCheckedAt(Date.now()),
+      desc:
+        rtdbConnected === true
+          ? "เชื่อมต่อ Firebase Realtime Database สำเร็จ"
+          : "ขาดการเชื่อมต่อ Firebase Realtime Database",
+      statusLabel: rtdbConnected === true ? "เชื่อมต่อแล้ว" : "ขาดการเชื่อมต่อ",
+      statusKind: rtdbConnected === true ? "success" : "error",
+    },
+    {
+      time: "—",
+      desc: `ขอบเขตข้อมูล: ${scope === "all" && isAdmin ? "ทั้งระบบ (แอดมิน)" : "เฉพาะบัญชีที่ล็อกอิน"}`,
+      statusLabel: "ปกติ",
+      statusKind: "neutral",
+    },
+  ];
+}
+
 export function LogsPage() {
   const { searchQuery } = useOutletContext<OutletCtx>();
   const q = searchQuery.trim().toLowerCase();
@@ -86,36 +132,7 @@ export function LogsPage() {
     markNotificationsAsSeen(notifications);
   }, [tab, notifications]);
 
-  const statusRows = useMemo((): LogRow[] => {
-    if (rtdbConnected === null) {
-      return [
-        {
-          time: "—",
-          desc: "กำลังตรวจสอบการเชื่อมต่อ Realtime Database…",
-          statusLabel: "กำลังตรวจสอบ",
-          statusKind: "warning",
-        },
-      ];
-    }
-
-    return [
-      {
-        time: new Date().toLocaleString("th-TH"),
-        desc:
-          rtdbConnected === true
-            ? "เชื่อมต่อ Firebase Realtime Database สำเร็จ"
-            : "ขาดการเชื่อมต่อ Firebase Realtime Database",
-        statusLabel: rtdbConnected === true ? "เชื่อมต่อแล้ว" : "ขาดการเชื่อมต่อ",
-        statusKind: rtdbConnected === true ? "success" : "error",
-      },
-      {
-        time: new Date().toLocaleString("th-TH"),
-        desc: `ขอบเขตข้อมูล: ${scope === "all" && isAdmin ? "ทั้งระบบ (แอดมิน)" : "เฉพาะบัญชีที่ล็อกอิน"}`,
-        statusLabel: "ปกติ",
-        statusKind: "neutral",
-      },
-    ];
-  }, [rtdbConnected, scope, isAdmin]);
+  const statusRows = buildStatusRows(rtdbConnected, scope, isAdmin);
 
   const alertGroups = useMemo(() => {
     return ALERT_GROUP_ORDER.map((kind) => ({
@@ -147,9 +164,9 @@ export function LogsPage() {
 
   const tabHint =
     tab === "status"
-      ? "สถานะทั่วไปของระบบ — ไม่นับเป็นแจ้งเตือน"
+      ? "สถานะทั่วไป — เวลาเชื่อมต่อ = ตอนตรวจล่าสุด (เปลี่ยนทุกครั้งที่เปิดหน้านี้)"
       : tab === "alerts"
-        ? "แจ้งเตือนที่ต้องดู — ตัวเลขตรงกับการ์ด Dashboard"
+        ? "แจ้งเตือนที่ต้องดู — บอร์ดออฟไลน์ / แปลง / การเชื่อมต่อ"
         : "กิจกรรมที่ผู้ใช้/แอดมินทำในระบบ";
 
   return (

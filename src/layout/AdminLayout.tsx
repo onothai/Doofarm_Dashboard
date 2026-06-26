@@ -83,20 +83,21 @@ function AdminLayoutInner() {
           <DooFarmLogo className="doofarmLogo doofarmLogoSidebar" />
         </div>
         <nav className="adminNav">
+          <p className="adminNavLabel">เมนูหลัก</p>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/" end onClick={closeNav}>
-            Dashboard
+            ภาพรวม
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/users" onClick={closeNav}>
-            Users
+            ผู้ใช้
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/farms" onClick={closeNav}>
-            Farms
+            แปลง
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/devices" onClick={closeNav}>
-            Devices
+            บอร์ด
           </NavLink>
           <NavLink className={({ isActive }) => `adminNavItem ${isActive ? "active" : ""}`} to="/logs" onClick={closeNav}>
-            Logs
+            บันทึก
             {hasUnreadAlerts ? (
               <span className="navUnreadDot" aria-label="มีแจ้งเตือนใหม่" />
             ) : null}
@@ -122,7 +123,7 @@ function AdminLayoutInner() {
               <IconMenu />
             </button>
             <div className="adminPageIntro">
-              <p className="adminPageEyebrow">DooFarm Admin</p>
+              <p className="adminPageEyebrow">แผงควบคุม DooFarm</p>
               <h1 className="adminPageTitle">{pageTitle}</h1>
             </div>
             <div className="adminTopRight">

@@ -87,6 +87,7 @@ export type FarmRow = {
   autoMode: boolean | null;
   moistureThreshold: number | null;
   online: boolean;
+  lastOnlineAt: number | null;
   fwVersion: string | null;
 };
 

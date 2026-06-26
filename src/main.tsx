@@ -4,6 +4,7 @@ import { HashRouter } from "react-router-dom";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles/global.css";
+import "./styles/modern-overrides.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
