@@ -17,7 +17,19 @@ import {
   setSchedule,
 } from "../lib/farmControl";
 import { readPumpUiState, type PumpUiState } from "../lib/pumpState";
+import { SensorHistoryChart } from "../components/SensorHistoryChart";
+import {
+  buildSensorSeries,
+  computeYBounds,
+  metricConfig,
+  RANGE_LABELS,
+  seriesStats,
+  type RangeKey,
+  type SensorHistoryRow,
+} from "../lib/sensorHistory";
 import type { FarmAlertRow, PlanNode } from "../lib/rtdb-types";
+
+const RANGE_KEYS: RangeKey[] = ["today", "7d", "30d"];
 
 function fmtNum(v: number | undefined | null, suffix = ""): string {
   if (typeof v !== "number" || !Number.isFinite(v)) return "—";
@@ -66,6 +78,8 @@ export function FarmManagePage() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const settingsDirtyRef = useRef(false);
   const moistureDraggingRef = useRef(false);
+  const [chartRange, setChartRange] = useState<RangeKey>("today");
+  const chartMetric = "soilMoisture" as const;
 
   useEffect(() => {
     if (!database || !ownerUid || !planId) return;
@@ -117,6 +131,25 @@ export function FarmManagePage() {
       .sort((a, b) => Number(b.timestampMs ?? 0) - Number(a.timestampMs ?? 0))
       .slice(0, 8);
   }, [plan?.ActivityLogs]);
+
+  const historyRows = useMemo(() => {
+    const rows = plan?.SensorHistory ?? {};
+    return Object.values(rows as Record<string, SensorHistoryRow>);
+  }, [plan?.SensorHistory]);
+
+  const chartMetricCfg = metricConfig(chartMetric);
+
+  const chartSeries = useMemo(
+    () => buildSensorSeries(historyRows, chartRange, chartMetric),
+    [historyRows, chartRange, chartMetric],
+  );
+
+  const chartStats = useMemo(() => seriesStats(chartSeries), [chartSeries]);
+
+  const chartBounds = useMemo(
+    () => computeYBounds(chartSeries, chartMetric),
+    [chartSeries, chartMetric],
+  );
 
   useEffect(() => {
     if (!rebootNotice || rebootNotice.kind !== "success") return;
@@ -229,6 +262,65 @@ export function FarmManagePage() {
           {rebootNotice.message}
         </div>
       ) : null}
+
+      <section className="manageCard farmChartCard">
+        <div className="farmChartHead">
+          <div>
+            <h2>แนวโน้มความชื้นในดิน</h2>
+            <p className="manageHint">กราฟความชื้นดินย้อนหลังของแปลงนี้ (เหมือนหน้า Dashboard ในแอป)</p>
+          </div>
+          <div className="farmChartRanges">
+            {RANGE_KEYS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`farmChartRangeBtn ${chartRange === r ? "active" : ""}`}
+                onClick={() => setChartRange(r)}
+              >
+                {RANGE_LABELS[r]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="farmChartStats">
+          <div>
+            <span>ล่าสุด</span>
+            <strong>
+              {chartStats.latest != null ? `${chartStats.latest}${chartMetricCfg.unit}` : "—"}
+            </strong>
+          </div>
+          <div>
+            <span>เฉลี่ย</span>
+            <strong>
+              {chartStats.avg != null ? `${chartStats.avg}${chartMetricCfg.unit}` : "—"}
+            </strong>
+          </div>
+          <div>
+            <span>ต่ำสุด</span>
+            <strong>
+              {chartStats.min != null ? `${chartStats.min}${chartMetricCfg.unit}` : "—"}
+            </strong>
+          </div>
+          <div>
+            <span>สูงสุด</span>
+            <strong>
+              {chartStats.max != null ? `${chartStats.max}${chartMetricCfg.unit}` : "—"}
+            </strong>
+          </div>
+        </div>
+
+        <div className="farmChartPanel">
+          <div className="farmChartWhite">
+            <SensorHistoryChart
+              series={chartSeries}
+              metric={chartMetricCfg}
+              yMin={chartBounds.min}
+              yMax={chartBounds.max}
+            />
+          </div>
+        </div>
+      </section>
 
       <div className="farmManageGrid">
         <section className="manageCard manageCardSensors">
